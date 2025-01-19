@@ -9,7 +9,7 @@ import { MIST_PER_SUI } from '@mysten/sui/utils';
  
 const TENSROFLOW_SUI_PACKAGE_ID = '0xf3d386954dad5e1aad298f9d3c2e962eff783461bfe0bd09ef4d466edebf7453';
 
-const PRIVATE_KEY = "0xd26e2b519686dc145ac251ffd435bf3fcb1ce6abd50bfe9ac1d0e0739791d122";
+const PRIVATE_KEY = "";
 
 // async function main() {
 if (!PRIVATE_KEY) {
