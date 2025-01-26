@@ -10,8 +10,8 @@ import promptSync from 'prompt-sync';
 
 const prompt = promptSync();
 
-const network = "devnet";
-const TENSROFLOW_SUI_PACKAGE_ID = '0xea969675a5727adf09d3a5903b52e5df5c759cd031aae4e3d35914a31c6e7257';
+const network = "mainnet";
+const TENSROFLOW_SUI_PACKAGE_ID = '0x15db7fc27e798491b9cef5d5e477f7870ecc04c279475f88531d0517881d6645';
 const PRIVATE_KEY = "";
 
 // 3
@@ -483,12 +483,12 @@ async function waitForCommand() {
 			}
 			break;
 			
-		case "compute_8":
+		case "compute_16":
 			// compute8();
 
 			index = 0;
-			for (let i = 0; i<8; i++) {
-				console.log(index, index+1)
+			for (let i = 0; i<16; i++) {
+				console.log(index, index)
 				tx = new Transaction();
 
 				if (!tx.gas) {
@@ -505,10 +505,10 @@ async function waitForCommand() {
 						tx.pure.vector('u64', input_sign),
 						tx.pure.u64(1),
 						tx.pure.u64(index),
-						tx.pure.u64(index+1),
+						tx.pure.u64(index),
 					],
 				})
-				index += 2
+				index += 1
 
 				console.log("Executing transaction block..."); 
 				keypair = Ed25519Keypair.fromSecretKey(fromHex(PRIVATE_KEY));
