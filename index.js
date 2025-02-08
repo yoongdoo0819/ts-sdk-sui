@@ -44,6 +44,18 @@ if (!PRIVATE_KEY) {
 	console.error("Please provide a PRIVATE_KEY in .env file");
 }
 
+async function get() {
+	try {
+		const response = await fetch('http://localhost:8083/get');
+		const data = await response.json();
+		console.log(data);
+		return data;
+	} catch (error) {
+		console.error('API Call Err:', error)
+		return "";
+	}
+}
+
 async function store(digest_arr, partialDenses_digest_arr, version_arr) {
 	try {
 		const response = await fetch('http://localhost:8083/store', {
@@ -67,6 +79,8 @@ async function run() {
 	let tx_digest_arr = [];
 	let partialDenses_digest_arr = [];
 	let version_arr = [];
+
+	let input = await get();
 
 	while (true) {
 		const command = prompt(">> Please enter your command : ");
