@@ -274,10 +274,7 @@ async function run() {
 			totalGasUsage += Number(result.effects.gasUsed.computationCost) + Number(result.effects.gasUsed.nonRefundableStorageFee)
 
 			console.log("\nresult:", result.events[0].parsedJson['value']);
-			console.log("Total Gas Used:", totalGasUsage)
-
-			console.log(totalGasUsage / Number(MIST_PER_SUI));
-
+			console.log("Total Gas Used (SUI):", totalGasUsage / Number(MIST_PER_SUI))
 
 			const data = await store(tx_digest_arr, partialDenses_digest_arr, version_arr);
 			if (data.status === "success") {
