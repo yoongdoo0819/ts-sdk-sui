@@ -1,11 +1,8 @@
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { getFaucetHost, requestSuiFromFaucetV1 } from '@mysten/sui/faucet';
+import { MIST_PER_SUI } from '@mysten/sui/utils';
 import { Transaction } from '@mysten/sui/transactions';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { Secp256k1Keypair } from '@mysten/sui/keypairs/secp256k1';
-import { Secp256r1Keypair } from '@mysten/sui/keypairs/secp256r1';
 import { fromHex } from '@mysten/bcs';
-import { MIST_PER_SUI } from '@mysten/sui/utils';
 import promptSync from 'prompt-sync';
 import ora from "ora";
 
@@ -13,7 +10,7 @@ const prompt = promptSync();
 
 const network = "devnet";
 const TENSROFLOW_SUI_PACKAGE_ID = '0x0e12ab2ac23e95ba1abf662c7a6ec0caf874104eabbc88e46828a412f66cff7e';
-const PRIVATE_KEY = "0xf5e83010b44412c64f7c48bab1ad306d4280f716318a2f6d91b59d9608fddd3e";
+const PRIVATE_KEY = "";
 
 // 3
 // let input_mag = [0, 0, 0, 0, 0, 0, 0, 0, 0, 18, 85, 99, 17, 0, 0, 0, 3, 0, 56, 32, 0, 0, 0, 62, 93, 90, 0, 0, 0, 0, 0, 0, 99, 0, 0, 0, 90, 76, 94, 27, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -47,17 +44,36 @@ if (!PRIVATE_KEY) {
 	console.error("Please provide a PRIVATE_KEY in .env file");
 }
 
-async function waitForCommand() {
-	// 사용자 입력 받기
+async function store(digest_arr, partialDenses_digest_arr, version_arr) {
+	try {
+		const response = await fetch('http://localhost:8083/store', {
+			method: 'POST', 
+			headers: { 'Content-Type': 'application/json' }, 
+			body: JSON.stringify({ digestArr: digest_arr, partialDensesDigestArr: partialDenses_digest_arr, versionArr: version_arr }) // JSON 데이터 변환
+		  });
+		const data = await response.json();
+		return data;
+	} catch (error) {
+		console.error('API Call Err:', error)
+		return "";
+	}
+}
+ 
+async function run() {
+
 	let keypair;
 	let result;
 
+	let tx_digest_arr = [];
+	let partialDenses_digest_arr = [];
+	let version_arr = [];
+
 	while (true) {
-		const command = prompt("Please enter your command : ");
+		const command = prompt(">> Please enter your command : ");
 
 		switch (command.trim().toLowerCase()) {
 		case "init":
-			console.log("Initializing...");
+			console.log("\nInitializing... \n");
 			let tx = new Transaction();
 
 			if (!tx.gas) {
@@ -79,9 +95,11 @@ async function waitForCommand() {
 				}
 			})
 
-			let parts;
-			let exist;
-			for (let i=0; i<3; i++) {
+			for (let i=0; i < result['objectChanges'].length; i++) {
+
+				let parts;
+				let exist;
+				
 				parts = result['objectChanges'][i]["objectType"].split("::");
 				exist = parts.some(part => part.includes("PartialDenses"));
 				if (exist == true) {
@@ -97,15 +115,15 @@ async function waitForCommand() {
 				}
 			}
 
-			console.log("SignedFixedGraph ", SignedFixedGraph);
-			console.log("PartialDenses ", PartialDenses);
+			console.log("SignedFixedGraph:", SignedFixedGraph);
+			console.log("PartialDenses:", PartialDenses);
 
-			console.log("Gas Used", Number(result.effects.gasUsed.computationCost) + Number(result.effects.gasUsed.storageCost) + Number(result.effects.gasUsed.storageRebate));
-			console.log(result);
+			console.log("Gas Used:", Number(result.effects.gasUsed.computationCost) + Number(result.effects.gasUsed.storageCost) + Number(result.effects.gasUsed.storageRebate));
+			console.log("");
 			break;
 			
 		case "run":
-			console.log('Processing 16-partitioned Dense layers...');
+			console.log('\nProcessing 16-partitioned Dense layers... \n');
 
 			let totalTasks = 16
 			let spinner;
@@ -149,15 +167,34 @@ async function waitForCommand() {
 
 				spinner = ora("Processing task... ").start();
 				console.log(progressBar + ` ${i+1}/${totalTasks}`);
-				console.log("Gas Used", Number(result.effects.gasUsed.computationCost) + Number(result.effects.gasUsed.nonRefundableStorageFee));
+
+				for (let i=0; i < result['objectChanges'].length; i++) {
+
+					let parts;
+					let exist;
+					
+					parts = result['objectChanges'][i]["objectType"].split("::");
+					exist = parts.some(part => part.includes("PartialDenses"));
+					if (exist == true) {
+						partialDenses_digest_arr.push(result['objectChanges'][i]["digest"]);
+						version_arr.push(result['objectChanges'][i]["version"]);
+					}
+				}
+				
+				tx_digest_arr.push(result.digest)
+				console.log("Tx Digest:", result.digest)
+
+				console.log("Gas Used:", Number(result.effects.gasUsed.computationCost) + Number(result.effects.gasUsed.nonRefundableStorageFee));
+				console.log("");
 				totalGasUsage += Number(result.effects.gasUsed.computationCost) + Number(result.effects.gasUsed.nonRefundableStorageFee)
 			}
 
 			spinner.succeed("✅ Task completed!");
+			console.log("");
 			break;
 			
 		case "finalize":
-			console.log('Finalize...');
+			console.log('\nFinalize... \n');
 			let final_tx = new Transaction();
 
 			if (!final_tx.gas) {
@@ -203,12 +240,43 @@ async function waitForCommand() {
 				}
 			})
 
-			console.log("Gas Used", Number(result.effects.gasUsed.computationCost) + Number(result.effects.gasUsed.nonRefundableStorageFee));
+			for (let i=0; i < result['objectChanges'].length; i++) {
+
+				let parts;
+				let exist;
+				
+				parts = result['objectChanges'][i]["objectType"].split("::");
+				exist = parts.some(part => part.includes("PartialDenses"));
+				if (exist == true) {
+					partialDenses_digest_arr.push(result['objectChanges'][i]["digest"]);
+					version_arr.push(result['objectChanges'][i]["version"]);
+				}
+			}
+			
+			tx_digest_arr.push(result.digest)
+			console.log("\nTx Digest:", result.digest)
+
+			console.log("Gas Used: ", Number(result.effects.gasUsed.computationCost) + Number(result.effects.gasUsed.nonRefundableStorageFee));
 			totalGasUsage += Number(result.effects.gasUsed.computationCost) + Number(result.effects.gasUsed.nonRefundableStorageFee)
 
-			// console.log(result.events[0].parsedJson);
-			console.log("\nresult", result.events[0].parsedJson['value']);
-			console.log("Total Gas Used", totalGasUsage)
+			console.log("\nresult:", result.events[0].parsedJson['value']);
+			console.log("Total Gas Used:", totalGasUsage)
+
+			console.log(totalGasUsage / Number(MIST_PER_SUI));
+
+
+			const data = await store(tx_digest_arr, partialDenses_digest_arr, version_arr);
+			if (data.status === "success") {
+				console.log("\n***** Walrus Store Success *****");
+				console.log("BlobID:", data.blobId);
+				console.log("");
+			}
+
+			totalGasUsage = 0;
+			tx_digest_arr = [];
+			partialDenses_digest_arr = [];
+			version_arr = [];
+
 			break;
 			
 		default:
@@ -218,7 +286,80 @@ async function waitForCommand() {
   }
 
 // start program
-waitForCommand();
+const letters = {
+    "O": [
+        " /---\\ ",
+        "|     |",
+        "|     |",
+        " \\---/ "
+    ],
+    "P": [
+        "|----\\ ",
+        "|     |",
+        "|----/ ",
+        "|      "
+    ],
+    "E": [
+        "|------",
+        "|      ",
+        "|----- ",
+        "|------"
+    ],
+    "N": [
+        "|\\    |",
+        "| \\   |",
+        "|  \\  |",
+        "|   \\ |"
+    ],
+    "G": [
+        " /----\\ ",
+        "|       ",
+        "|   ---|",
+        " \\----/ "
+    ],
+    "R": [
+        "|----\\ ",
+        "|     |",
+        "|----/ ",
+        "|    \\ "
+    ],
+    "A": [
+        "  /\\  ",
+        " /  \\ ",
+        "/----\\",
+        "|    |"
+    ],
+    "P": [
+        "|----\\ ",
+        "|     |",
+        "|----/ ",
+        "|      "
+    ],
+    "H": [
+        "|    |",
+        "|----|",
+        "|    |",
+        "|    |"
+    ]
+};
+
+function printBanner(text) {
+    let output = ["", "", "", ""];
+
+    for (let char of text) {
+        if (letters[char]) {
+            letters[char].forEach((line, i) => {
+                output[i] += line + "  ";
+            });
+        }
+    }
+
+    console.log(output.join("\n"));
+	console.log("\n\n");
+}
+
+printBanner("OPENGRAPH");
+run();
 
   
 
